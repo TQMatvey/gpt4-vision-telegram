@@ -20,6 +20,7 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 
+prompt = "What Do you see on this image"
 
 def process_image(image_link, text_question):
     response = client.chat.completions.create(
@@ -42,20 +43,40 @@ async def get_image(update: Update, context: CallbackContext) -> None:
     photo_link = await update.message.photo[-1].get_file()
 
     await update.message.reply_text(
-        process_image(photo_link.file_path, "What Do you see on this image")
+        process_image(photo_link.file_path, prompt)
     )
 
 
 async def start(update: Update, context: CallbackContext) -> None:
-    await update.message.reply_text("Send me an image!")
+    await update.message.reply_text("Send me an image! or set a prompt.")
+
+
+async def save_prompt(update: Update, context: CallbackContext) -> None:
+    global prompt
+
+    # Extract the user's prompt
+    prompt = update.message.text[8:]
+
+    # Send confirmation message
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id, text="Custom Prompt set, you can now send an image."
+    )
+
+
+async def get_prompt(update: Update, context: CallbackContext) -> None:
+    await update.message.reply_text(f"Current prompt is: {prompt}.")
 
 
 application = ApplicationBuilder().token(telegram_bot_token).build()
 
 start_handler = CommandHandler("start", start)
+save_prompt_handler = CommandHandler("prompt", save_prompt)
+get_prompt_handler = CommandHandler("getprompt", get_prompt)
 get_image_handler = MessageHandler(filters.PHOTO, get_image)
 
 application.add_handler(start_handler)
+application.add_handler(save_prompt_handler)
+application.add_handler(get_prompt_handler)
 application.add_handler(get_image_handler)
 
 application.run_polling()
