@@ -24,8 +24,33 @@ class ChatGPTTelegramBot:
         self.config = config
         self.openai = openai
         self.prompt = "What Do you see on this image"
+        self.disallowed_message = "Sorry, you are not allowed to use this bot. You can check out the source code at https://github.com/TQMatvey/gpt4-vision-telegram"
+
+    async def is_allowed(self, config, update: Update, context: CallbackContext) -> bool:
+        if self.config["allowed_user_ids"] == "*":
+            return True
+
+        user_id = update.message.from_user.id
+        allowed_user_ids = self.config["allowed_user_ids"].split(",")
+        if str(user_id) in allowed_user_ids:
+            return True
+
+        return False
+
+    async def send_disallowed_message(self, update: Update):
+        """
+        Sends the disallowed message to the user.
+        """
+        await update.effective_message.reply_text(
+            text=self.disallowed_message,
+            disable_web_page_preview=True
+        )
 
     async def get_image(self, update: Update, context: CallbackContext) -> None:
+        if not await self.is_allowed(self.config, update, context):
+            await self.send_disallowed_message(update)
+            return
+
         photo_link = await update.message.photo[-1].get_file()
 
         await update.message.reply_text(
@@ -36,6 +61,10 @@ class ChatGPTTelegramBot:
         await update.message.reply_text("Send me an image! or set a prompt.")
 
     async def save_prompt(self, update: Update, context: CallbackContext) -> None:
+        if not await self.is_allowed(self.config, update, context):
+            await self.send_disallowed_message(update)
+            return
+        
         # Extract the user's prompt
         self.prompt = update.message.text[8:]
 
@@ -46,6 +75,10 @@ class ChatGPTTelegramBot:
         )
 
     async def get_prompt(self, update: Update, context: CallbackContext) -> None:
+        if not await self.is_allowed(self.config, update, context):
+            await self.send_disallowed_message(update)
+            return
+        
         await update.message.reply_text(f"Current prompt is: {self.prompt}.")
 
     def run(self):
